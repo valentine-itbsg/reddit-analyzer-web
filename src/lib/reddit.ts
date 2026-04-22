@@ -17,8 +17,10 @@ export class RedditFetcherService {
   }
 
   async fetchHtml(url: string, retryCount: number, delayMs: number): Promise<string> {
-    const jsonUrl =
-      url.replace(/\?.*$/, "").replace(/\/$/, "") + ".json?limit=500&raw_json=1";
+    const cleanUrl = url.replace(/\?.*$/, "").replace(/\/$/, "");
+    const redditPath = new URL(cleanUrl).pathname;
+    
+    const jsonUrl = `https://api.reddit.com${redditPath}?limit=500&raw_json=1`;
 
     let lastError: unknown = null;
 
