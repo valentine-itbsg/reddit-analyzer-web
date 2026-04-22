@@ -23,10 +23,16 @@ function stringifyCell(value: unknown) {
 }
 
 export async function GET() {
-  const prisma = getPrisma();
-  const analyses = await prisma.analysis.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  let analyses;
+  try {
+    const prisma = getPrisma();
+    analyses = await prisma.analysis.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Reddit Analyzer";

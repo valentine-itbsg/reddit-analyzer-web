@@ -8,6 +8,9 @@ import { getPrisma } from "./prisma";
 
 export async function processAnalysisByUrl(url: string) {
   const prisma = getPrisma();
+  if (!config.openAiApiKey) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
   const fetcher = new RedditFetcherService();
   const parser = new RedditParserService();
   const aiAnalyzer = new AiAnalyzerService(config.openAiApiKey, config.openAiModel);
