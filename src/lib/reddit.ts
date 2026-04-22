@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance } from "axios";
 import { delay } from "./utils/delay";
 
 export class RedditFetcherService {
@@ -8,10 +8,11 @@ export class RedditFetcherService {
     this.client = axios.create({
       timeout: 20000,
       headers: {
-        "User-Agent": "reddit-analyzer-bot/1.0 by YourUsername",
-        Accept: "application/json",
+        "User-Agent": "web:reddit-analyzer:1.0.0 (by /u/your_actual_reddit_username)",
+        Accept: "application/json, text/plain, */*",
       },
       maxRedirects: 5,
+      validateStatus: () => true,
     });
   }
 
@@ -23,7 +24,26 @@ export class RedditFetcherService {
 
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       try {
+        console.log("Fetching Reddit JSON:", {
+          url: jsonUrl,
+          attempt: attempt + 1,
+        });
+
         const response = await this.client.get<unknown>(jsonUrl);
+
+        console.log("Reddit response:", {
+          url: jsonUrl,
+          status: response.status,
+          headers: response.headers,
+          dataPreview:
+            typeof response.data === "string"
+              ? response.data.slice(0, 500)
+              : JSON.stringify(response.data).slice(0, 500),
+        });
+
+        if (response.status >= 400) {
+          throw new Error(`Reddit returned status ${response.status}`);
+        }
 
         if (!response.data) {
           throw new Error("Received empty JSON response.");
@@ -32,6 +52,26 @@ export class RedditFetcherService {
         return JSON.stringify(response.data);
       } catch (error) {
         lastError = error;
+
+        if (axios.isAxiosError(error)) {
+          const axiosError = error as AxiosError;
+          console.error("Reddit fetch attempt failed:", {
+            url: jsonUrl,
+            attempt: attempt + 1,
+            status: axiosError.response?.status,
+            responseData:
+              typeof axiosError.response?.data === "string"
+                ? axiosError.response.data.slice(0, 500)
+                : JSON.stringify(axiosError.response?.data ?? {}).slice(0, 500),
+            message: axiosError.message,
+          });
+        } else {
+          console.error("Reddit fetch attempt failed:", {
+            url: jsonUrl,
+            attempt: attempt + 1,
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
 
         if (attempt < retryCount) {
           await delay(delayMs);
