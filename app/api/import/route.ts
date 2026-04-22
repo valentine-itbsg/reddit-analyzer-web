@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { processAnalysisByUrl } from "@/src/lib/process-analysis";
 
+export const runtime = "nodejs";
+
 function getHyperlinkValue(value: unknown) {
   if (!value || typeof value !== "object") return null;
   if (!("hyperlink" in value)) return null;
@@ -17,11 +19,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "File is required" }, { status: 400 });
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  const bytes = await file.arrayBuffer();
+  await workbook.xlsx.load(bytes);
 
   const worksheet = workbook.worksheets[0];
   if (!worksheet) {

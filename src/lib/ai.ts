@@ -49,7 +49,10 @@ Return ONLY valid JSON with this exact shape:
   "keyTakeaways": string[],
   "usefulnessScore": number,
   "topicRelevanceScore": number,
-  "finalTakeaway": string
+  "finalTakeaway": string,
+  "aiMentionCount": number,
+  "mentionedTools": string[],
+  "aiContextSummary": string
 }
 
 Rules:
@@ -90,6 +93,9 @@ ${JSON.stringify(inputPayload, null, 2)}
       usefulnessScore: this.normalizeScore(parsed.usefulnessScore),
       topicRelevanceScore: this.normalizeScore(parsed.topicRelevanceScore),
       finalTakeaway: parsed.finalTakeaway ?? "",
+      aiMentionCount: Number.isFinite(Number(parsed.aiMentionCount)) ? Math.max(0, Number(parsed.aiMentionCount)) : 0,
+      mentionedTools: parsed.mentionedTools ?? [],
+      aiContextSummary: parsed.aiContextSummary ?? "",
     };
   }
 

@@ -2,6 +2,8 @@ import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 
+export const runtime = "nodejs";
+
 function formatDateForFilename(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(
