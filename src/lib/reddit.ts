@@ -8,7 +8,7 @@ export class RedditFetcherService {
     this.client = axios.create({
       timeout: 20000,
       headers: {
-        "User-Agent": "web:reddit-analyzer:1.0.0 (by /u/your_actual_reddit_username)",
+        "User-Agent": "web:reddit-analyzer:1.0.0 (by /u/Spiritual-Emphasis90)",
         Accept: "application/json, text/plain, */*",
       },
       maxRedirects: 5,
