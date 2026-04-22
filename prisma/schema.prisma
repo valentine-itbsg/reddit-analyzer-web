@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Analysis {
+  id                  String   @id @default(cuid())
+  sourceUrl           String   @unique
+  status              String
+  title               String?
+  subreddit           String?
+  author              String?
+  postScore           Int?
+  commentCount        Int?
+  parsedCommentCount  Int      @default(0)
+  createdAtReddit     DateTime?
+  summary             String?
+  sentiment           String?
+  recommendedServices Json?
+  mentionedBrands     Json?
+  painPoints          Json?
+  advantages          Json?
+  keyTakeaways        Json?
+  usefulnessScore     Int?
+  topicRelevanceScore Int?
+  finalTakeaway       String?
+  errorMessage        String?
+  rawPayload          Json?
+
+  keywordCount        Int?
+  uniqueKeywordCount  Int?
+  topKeywords         Json?
+  matchedKeywords     Json?
+  keywordFrequency    Json?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
