@@ -1,4 +1,4 @@
-import { prisma } from "@/src/lib/prisma";
+import { getPrisma } from "@/src/lib/prisma";
 import { processAnalysisByUrl } from "@/src/lib/process-analysis";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -8,6 +8,7 @@ const createAnalysisSchema = z.object({
 });
 
 export async function GET() {
+  const prisma = getPrisma();
   const analyses = await prisma.analysis.findMany({
     orderBy: { createdAt: "desc" },
   });

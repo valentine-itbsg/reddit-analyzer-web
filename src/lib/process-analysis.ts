@@ -4,9 +4,10 @@ import { RedditFetcherService } from "./reddit";
 import { RedditParserService } from "./parser";
 import { config } from "./config";
 import { KeywordAnalyzerService } from "./keyword-analyzer";
-import { prisma } from "./prisma";
+import { getPrisma } from "./prisma";
 
 export async function processAnalysisByUrl(url: string) {
+  const prisma = getPrisma();
   const fetcher = new RedditFetcherService();
   const parser = new RedditParserService();
   const aiAnalyzer = new AiAnalyzerService(config.openAiApiKey, config.openAiModel);

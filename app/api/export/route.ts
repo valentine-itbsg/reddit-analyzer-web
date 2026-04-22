@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
+import { getPrisma } from "@/src/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -23,6 +23,7 @@ function stringifyCell(value: unknown) {
 }
 
 export async function GET() {
+  const prisma = getPrisma();
   const analyses = await prisma.analysis.findMany({
     orderBy: { createdAt: "desc" },
   });
