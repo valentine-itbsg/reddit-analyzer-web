@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Analysis = {
   id: string;
@@ -35,6 +35,16 @@ type Analysis = {
   createdAt: string;
   updatedAt: string;
 };
+
+type SortKey =
+  | "postScore"
+  | "commentCount"
+  | "parsedCommentCount"
+  | "usefulnessScore"
+  | "topicRelevanceScore"
+  | "keywordCount";
+
+type SortDirection = "asc" | "desc";
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -75,6 +85,11 @@ function getSentimentBadge(sentiment: string | null) {
   return "bg-zinc-50 text-zinc-700 ring-zinc-600/20";
 }
 
+function getSortValue(row: Analysis, key: SortKey): number | null {
+  const value = row[key];
+  return typeof value === "number" && !Number.isNaN(value) ? value : null;
+}
+
 export default function HomePage() {
   const [url, setUrl] = useState("");
   const [rows, setRows] = useState<Analysis[]>([]);
@@ -86,6 +101,9 @@ export default function HomePage() {
     text: string;
   } | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   async function loadRows() {
     setRefreshing(true);
@@ -113,12 +131,62 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!expandedText) return;
+
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setExpandedText(null);
     }
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [expandedText]);
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+
+    const copy = [...rows];
+
+    copy.sort((a, b) => {
+      const aValue = getSortValue(a, sortKey);
+      const bValue = getSortValue(b, sortKey);
+
+      if (aValue === null && bValue === null) return 0;
+      if (aValue === null) return 1;
+      if (bValue === null) return -1;
+
+      if (sortDirection === "asc") return aValue - bValue;
+      return bValue - aValue;
+    });
+
+    return copy;
+  }, [rows, sortKey, sortDirection]);
+
+  function handleSort(key: SortKey) {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDirection("asc");
+      return;
+    }
+
+    if (sortDirection === "asc") {
+      setSortDirection("desc");
+      return;
+    }
+
+    setSortKey(null);
+    setSortDirection("asc");
+  }
+
+  function renderSortIndicator(key: SortKey) {
+    if (sortKey !== key) {
+      return <span className="text-zinc-400">↕</span>;
+    }
+
+    if (sortDirection === "asc") {
+      return <span className="text-zinc-900 dark:text-zinc-100">↑</span>;
+    }
+
+    return <span className="text-zinc-900 dark:text-zinc-100">↓</span>;
+  }
 
   async function handleSubmit() {
     setLoading(true);
@@ -252,13 +320,24 @@ export default function HomePage() {
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
             <span className="rounded-md bg-white px-2 py-1 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800">
-              Rows: <span className="font-medium text-zinc-900 dark:text-zinc-100">{rows.length}</span>
+              Rows: <span className="font-medium text-zinc-900 dark:text-zinc-100">{sortedRows.length}</span>
             </span>
+
+            {sortKey ? (
+              <span className="rounded-md bg-white px-2 py-1 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800">
+                Sorted by:{" "}
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {sortKey} ({sortDirection})
+                </span>
+              </span>
+            ) : null}
+
             {loading ? (
               <span className="rounded-md bg-sky-50 px-2 py-1 text-sky-700 ring-1 ring-sky-600/20 dark:bg-sky-950/40 dark:text-sky-200">
                 Working…
               </span>
             ) : null}
+
             {error ? (
               <span className="rounded-md bg-rose-50 px-2 py-1 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-200">
                 {error}
@@ -356,7 +435,7 @@ export default function HomePage() {
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Analyses</h2>
               <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                Tip: hover a row to highlight. Titles are truncated; open the original post via the link icon.
+                Tip: click numeric column headers to sort. Titles are truncated; open the original post via the link icon.
               </p>
             </div>
           </div>
@@ -375,39 +454,212 @@ export default function HomePage() {
               <table className="w-full min-w-[1400px] border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10">
                   <tr>
-                    {[
-                      "Source",
-                      "Title",
-                      "Subreddit",
-                      "Author",
-                      "Score",
-                      "Comments",
-                      "Parsed",
-                      "Sentiment",
-                      "Usefulness",
-                      "Relevance",
-                      "Summary",
-                      "Final takeaway",
-                      "Recommended services",
-                      "Keyword count",
-                      "Top keywords",
-                      "Reddit created",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        scope="col"
-                        className={cx(
-                          "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
-                          "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
-                        )}
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Source
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Title
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Subreddit
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Author
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("postScore")}
+                        className="inline-flex items-center gap-2 rounded-md hover:text-zinc-900 dark:hover:text-zinc-100"
                       >
-                        {h}
-                      </th>
-                    ))}
+                        Score
+                        {renderSortIndicator("postScore")}
+                      </button>
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("commentCount")}
+                        className="inline-flex items-center gap-2 rounded-md hover:text-zinc-900 dark:hover:text-zinc-100"
+                      >
+                        Comments
+                        {renderSortIndicator("commentCount")}
+                      </button>
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("parsedCommentCount")}
+                        className="inline-flex items-center gap-2 rounded-md hover:text-zinc-900 dark:hover:text-zinc-100"
+                      >
+                        Parsed
+                        {renderSortIndicator("parsedCommentCount")}
+                      </button>
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Sentiment
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("usefulnessScore")}
+                        className="inline-flex items-center gap-2 rounded-md hover:text-zinc-900 dark:hover:text-zinc-100"
+                      >
+                        Usefulness
+                        {renderSortIndicator("usefulnessScore")}
+                      </button>
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("topicRelevanceScore")}
+                        className="inline-flex items-center gap-2 rounded-md hover:text-zinc-900 dark:hover:text-zinc-100"
+                      >
+                        Relevance
+                        {renderSortIndicator("topicRelevanceScore")}
+                      </button>
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Summary
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Final takeaway
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Recommended services
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("keywordCount")}
+                        className="inline-flex items-center gap-2 rounded-md hover:text-zinc-900 dark:hover:text-zinc-100"
+                      >
+                        Keyword count
+                        {renderSortIndicator("keywordCount")}
+                      </button>
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Top keywords
+                    </th>
+
+                    <th
+                      scope="col"
+                      className={cx(
+                        "whitespace-nowrap border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs font-semibold text-zinc-600",
+                        "dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300"
+                      )}
+                    >
+                      Reddit created
+                    </th>
                   </tr>
                 </thead>
+
                 <tbody>
-                  {rows.map((row) => (
+                  {sortedRows.map((row) => (
                     <tr
                       key={row.id}
                       className={cx(
@@ -566,6 +818,7 @@ export default function HomePage() {
                 </div>
                 <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Press Esc to close</div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setExpandedText(null)}
@@ -578,6 +831,7 @@ export default function HomePage() {
                 Close
               </button>
             </div>
+
             <div className="max-h-[70vh] overflow-auto px-5 py-4">
               <div className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-900 dark:text-zinc-100">
                 {expandedText.text}
