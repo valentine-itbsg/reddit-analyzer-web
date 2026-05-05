@@ -8,6 +8,7 @@ import { getPrisma } from "./prisma";
 
 export async function processAnalysisByUrl(url: string) {
   const prisma = getPrisma();
+  try {
   if (!config.openAiApiKey) {
     throw new Error("OPENAI_API_KEY is not set");
   }
@@ -109,4 +110,14 @@ export async function processAnalysisByUrl(url: string) {
       rawPayload,
     },
   });
+} catch (error) {
+  console.error("processAnalysisByUrl failed:", { url, error });
+  // Сохраните в БД статус "failed" вместо того чтобы пробрасывать 500
+  await prisma.analysis.upsert({
+    where: { sourceUrl: url },
+    update: { status: "failed", errorMessage: error instanceof Error ? error.message : String(error) },
+    create: { sourceUrl: url, status: "failed", errorMessage: error instanceof Error ? error.message : String(error) },
+  });
+  throw error;
+}
 }

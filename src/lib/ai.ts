@@ -65,12 +65,13 @@ Thread data:
 ${JSON.stringify(inputPayload, null, 2)}
 `.trim();
 
-    const response = await this.client.responses.create({
+    const response = await this.client.chat.completions.create({
       model: this.model,
-      input: prompt,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
     });
 
-    const rawText = response.output_text?.trim();
+    const rawText = response.choices[0]?.message?.content?.trim();
 
     if (!rawText) {
       throw new Error("OpenAI returned empty output.");
