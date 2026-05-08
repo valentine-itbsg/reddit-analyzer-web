@@ -3,6 +3,7 @@ export interface InputRow {
     url: string;
     [key: string]: unknown;
   }
+
   
   export interface ParsedRedditComment {
     commentId: string | null;
@@ -43,4 +44,5 @@ export interface InputRow {
     aiMentionCount: number;
     mentionedTools: string[];
     aiContextSummary: string;
+    extractedKeywords: string[];
   }

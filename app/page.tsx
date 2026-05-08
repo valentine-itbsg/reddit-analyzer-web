@@ -95,6 +95,7 @@ export default function HomePage() {
   const [rows, setRows] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedText, setExpandedText] = useState<{
     title: string;
@@ -105,8 +106,10 @@ export default function HomePage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  async function loadRows() {
-    setRefreshing(true);
+  async function loadRows(showRefreshing = true) {
+    if (showRefreshing) {
+      setRefreshing(true);
+    }
     setError(null);
 
     try {
@@ -117,7 +120,9 @@ export default function HomePage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load analyses");
     } finally {
-      setRefreshing(false);
+      if (showRefreshing) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -261,6 +266,24 @@ export default function HomePage() {
     }
   }
 
+  async function handleRefreshAll() {
+    setReanalyzing(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/analyses/refresh", {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error(`Refresh analysis failed (${res.status})`);
+
+      await loadRows(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Refresh analysis failed");
+    } finally {
+      setReanalyzing(false);
+    }
+  }
+
   return (
     <main className="min-h-[calc(100vh-0px)] bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-950 dark:to-zinc-950">
       <div className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -279,7 +302,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleExport}
-                disabled={exporting || refreshing || loading}
+                disabled={exporting || refreshing || loading || reanalyzing}
                 className={cx(
                   "inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 shadow-sm",
                   "hover:bg-zinc-50 active:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60",
@@ -298,15 +321,20 @@ export default function HomePage() {
 
               <button
                 type="button"
-                onClick={loadRows}
-                disabled={refreshing || loading || exporting}
+                onClick={handleRefreshAll}
+                disabled={refreshing || loading || exporting || reanalyzing}
                 className={cx(
                   "inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 shadow-sm",
                   "hover:bg-zinc-50 active:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60",
                   "dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
                 )}
               >
-                {refreshing ? (
+                {reanalyzing ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-50" />
+                    Re-analyzing
+                  </span>
+                ) : refreshing ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-50" />
                     Refreshing
@@ -338,6 +366,12 @@ export default function HomePage() {
               </span>
             ) : null}
 
+            {reanalyzing ? (
+              <span className="rounded-md bg-amber-50 px-2 py-1 text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-950/40 dark:text-amber-200">
+                Re-analyzing all rows…
+              </span>
+            ) : null}
+
             {error ? (
               <span className="rounded-md bg-rose-50 px-2 py-1 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-200">
                 {error}
@@ -363,7 +397,7 @@ export default function HomePage() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://www.reddit.com/r/.../comments/..."
-                  disabled={loading}
+                  disabled={loading || reanalyzing}
                   className={cx(
                     "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 shadow-sm outline-none",
                     "placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-200/50",
@@ -376,7 +410,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={loading || !url.trim()}
+                disabled={loading || reanalyzing || !url.trim()}
                 className={cx(
                   "inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm",
                   "hover:bg-zinc-800 active:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-60",
@@ -406,7 +440,7 @@ export default function HomePage() {
                 className={cx(
                   "flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-4",
                   "hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:bg-zinc-900",
-                  loading && "cursor-not-allowed opacity-60"
+                  (loading || reanalyzing) && "cursor-not-allowed opacity-60"
                 )}
               >
                 <div className="min-w-0">
@@ -421,7 +455,7 @@ export default function HomePage() {
                 <input
                   type="file"
                   accept=".xlsx"
-                  disabled={loading}
+                  disabled={loading || reanalyzing}
                   className="hidden"
                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 />

@@ -52,14 +52,20 @@ Return ONLY valid JSON with this exact shape:
   "finalTakeaway": string,
   "aiMentionCount": number,
   "mentionedTools": string[],
-  "aiContextSummary": string
+  "aiContextSummary": string,
+  "extractedKeywords": string[]
 }
+
 
 Rules:
 - Do not wrap JSON in markdown.
 - If information is missing, return empty arrays or conservative values.
 - usefulnessScore and topicRelevanceScore must be integers from 1 to 10.
 - Be concise and factual.
+- extractedKeywords must contain 5-15 important topic keywords or short phrases from the thread.
+- extractedKeywords must be lowercase, deduplicated, and 1-4 words each.
+- Prefer concrete entities, products, problems, workflows, and domain terms over generic words.
+- Use wording that appears in the thread whenever possible, because keywords are counted as exact phrases later.
 
 Thread data:
 ${JSON.stringify(inputPayload, null, 2)}
@@ -97,6 +103,7 @@ ${JSON.stringify(inputPayload, null, 2)}
       aiMentionCount: Number.isFinite(Number(parsed.aiMentionCount)) ? Math.max(0, Number(parsed.aiMentionCount)) : 0,
       mentionedTools: parsed.mentionedTools ?? [],
       aiContextSummary: parsed.aiContextSummary ?? "",
+      extractedKeywords: this.normalizeStringArray(parsed.extractedKeywords, 15),
     };
   }
 
@@ -109,5 +116,29 @@ ${JSON.stringify(inputPayload, null, 2)}
 
     const rounded = Math.round(numeric);
     return Math.min(10, Math.max(1, rounded));
+  }
+
+  private normalizeStringArray(value: unknown, limit: number): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const unique = new Set<string>();
+
+    for (const item of value) {
+      if (typeof item !== "string") continue;
+
+      const normalized = item.toLowerCase().replace(/\s+/g, " ").trim();
+
+      if (normalized) {
+        unique.add(normalized);
+      }
+
+      if (unique.size >= limit) {
+        break;
+      }
+    }
+
+    return [...unique];
   }
 }

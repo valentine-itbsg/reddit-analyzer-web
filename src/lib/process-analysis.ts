@@ -30,14 +30,7 @@ export async function processAnalysisByUrl(url: string) {
     config.maxCommentsForAi,
   );
 
-  const keywordMetrics = keywordAnalyzer.analyze(parsedPost, [
-    "vat",
-    "vat refund",
-    "vat compliance",
-    "tax filing",
-    "eu vat",
-    "etsy vat",
-  ]);
+  const keywordMetrics = keywordAnalyzer.analyze(parsedPost, ai.extractedKeywords);
 
   const rawPayload = JSON.parse(JSON.stringify(parsedPost)) as Prisma.InputJsonValue;
 
